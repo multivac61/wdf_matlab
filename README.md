@@ -1,2 +1,2 @@
 # wdf_matlab
-WDF filter simulations done in Matlab.
+Some WDF simulations in Matlab.
