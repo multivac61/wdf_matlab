@@ -2,23 +2,21 @@
 % clear all; close all;
 close all;
 
-Fs = 16e3; % sample rate (Hz)
-N = 2^10; % number of samples to simulate
-s = Fs; % one second in samples
-N = s;
-% input = [1, zeros(1, N-1)];
-[input, Fs] = audioread('resonator_output_4_bh.wav');
-% input = 0.1*(input(:,1)+input(:,2))/2;
-% input = input(1:s/10) * 0.4;
-input = input(1:2*s) * 0.3;
-N = length(input);
-output = zeros(1, N);
+Fs = 96e3; % sample rate (Hz)
+N = Fs; % number of samples to simulate
+input = [1, zeros(1, N-1)];
+
+% w = 0.5e-3*blackmanharris(64);
+% input = [w' input];
+%[input, Fs] = audioread('funk.wav');
+%input = (input(:,1)+input(:,2))/2;
+%output = zeros(1, N);
 
 % Component values
 R1 = 2.2e3;
 R2 = 47;
-R3 = 1e3;
-R4 = 1e3;
+R3 = 800e3;
+R4 = 800e3;
 R5 = 47;
 R6 = 5.038e3;
 % R6 = 7.5e3;
@@ -171,9 +169,13 @@ if exist('lookupTable') == 0
     load('lookupTable.mat')
 end
 
+% Output variables
+N = length(input);
+output = zeros(1, N);
+
 %% The simulation loop:
 for i = 1:N % run each time sample until N
-    if mod(i, (s / 100)) == 0
+    if mod(i, N / 10) == 0
         fprintf('i = %f\n', i); 
     end
     ar1 = input(i); ar2 = 0; ar3 = delay_C2; ar4 = 0;
@@ -194,7 +196,7 @@ for i = 1:N % run each time sample until N
     
     % Root - AP Diodes
     a = bp11;
-    a_str = num2str(a);
+%     a_str = num2str(a);
 %     ap11 = sign(a) * (abs(a) + 2*R0*Is - 2*Vt*n*lambertw(R0*Is / (Vt*n) * exp((R0*Is + abs(a)) / (Vt*n))));
     ap11 = bp11; % open circuit
 %     if lookupTable.isKey(a_str)
@@ -220,16 +222,34 @@ for i = 1:N % run each time sample until N
     delay_C1 = bp12; delay_C2 = br3;
 end; 
 
-% plot the magnitude response
+%% Plots
+% Plot impulse- and magnitude response.
 f = figure();
+subplot(2,1,1);
+plot(output);
+title('Impulse response');
+
+subplot(2,1,2);
 [H, w] = freqz(output, 1, N);
 semilogx(w / (2*pi) * Fs, 20 * log10(abs(H)));
-title('output');
+title('Magnitude response');
 axis tight;
 
-% g = figure();
-% plot(output);
-% % f = w / (2*pi) * Fs;
-% % save('/home/horigome/dev/python/wdf/old_research/wdfplot/wdf_tomq3.mat', 'H', 'f');
-% audiowrite('resonator_output_lp_dio/wdf/old_research/wdfplot/wdf_tomq3.mat', 'H', 'f');
-audiowrite('resonator_output_4_bh_lp_nodiodes.wav', output, Fs)
+% Plot output, before and after write to file.
+norm_output = output / (max(output) - min(output));
+filename = 'output/wdf_ms20_filter_64bitprecision_96k_32bit.wav'
+audiowrite(filename, output, Fs,'BitsPerSample',32)
+
+figure();
+subplot(3,1,1);
+spectrogram(output,blackmanharris(1024),10,256,Fs,'yaxis');
+title('Output');
+
+subplot(3,1,2);
+spectrogram(norm_output,blackmanharris(1024),10,256,Fs,'yaxis');
+title('Normalized output');
+
+subplot(3,1,3);
+[my_wav, my_fs] = audioread(filename);
+spectrogram(my_wav,blackmanharris(1024),10,256,my_fs,'yaxis');
+title('Re-read .wav output');
